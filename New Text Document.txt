@@ -1,0 +1,72 @@
+from flask import Flask, render_template, Response
+import cv2
+import numpy as np
+import pygetwindow as gw
+import pyautogui
+
+app = Flask(__name__)
+
+# Set the dimensions of the captured area
+CAPTURE_WIDTH = 1920
+CAPTURE_HEIGHT = 1080
+
+def generate():
+    while True:
+        try:
+            # Get the position and size of the primary screen
+            x, y, width, height = 0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT
+
+            # Capture the content of the screen
+            screenshot = pyautogui.screenshot(region=(x, y, width, height))
+            frame = np.array(screenshot)
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+            _, buffer = cv2.imencode('.jpg', frame)
+            frame_bytes = buffer.tobytes()
+
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        except Exception as e:
+            print(f"Error: {e}")
+            break
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Screen Sharing</title>
+</head>
+<body>
+    <img src="{{ url_for('video_feed') }}" width="100%" id="video_feed">
+    <script>
+        const videoFeed = document.getElementById('video_feed');
+        videoFeed.src = "{{ url_for('video_feed') }}";
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
